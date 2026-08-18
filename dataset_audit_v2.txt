@@ -1,0 +1,28 @@
+Dataset Audit Report - FoodShareAI (V2)
+=======================================
+TOTAL_IMAGES = 20203
+FRESH = 1259
+SPOILED = 1304
+FOOD_TYPE_ONLY = 17640
+INVALID = 0
+DUPLICATES_REMOVED = 153
+
+FOOD CATEGORY COUNTS (Fresh / Spoiled folders):
+-----------------------------------------------
+Rice                : 0 Fresh, 0 Spoiled
+Biryani             : 0 Fresh, 0 Spoiled
+Dosa                : 0 Fresh, 0 Spoiled
+Idli                : 0 Fresh, 0 Spoiled
+Sambar              : 0 Fresh, 0 Spoiled
+Curry               : 0 Fresh, 0 Spoiled
+Dal                 : 0 Fresh, 0 Spoiled
+Chapati             : 0 Fresh, 0 Spoiled
+Roti                : 0 Fresh, 0 Spoiled
+Parotta             : 0 Fresh, 0 Spoiled
+Fried Rice          : 0 Fresh, 0 Spoiled
+Noodles             : 0 Fresh, 0 Spoiled
+Pasta               : 0 Fresh, 0 Spoiled
+Pizza               : 0 Fresh, 0 Spoiled
+Bread               : 197 Fresh, 290 Spoiled
+Cheese              : 0 Fresh, 0 Spoiled
+Other prepared foods: 1062 Fresh, 1014 Spoiled

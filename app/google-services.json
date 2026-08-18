@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "151164167013",
+    "project_id": "food-share-ai-main",
+    "storage_bucket": "food-share-ai-main.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:151164167013:android:0d86fa7689d28d415bf78c",
+        "android_client_info": {
+          "package_name": "com.aistudio.foodshare.kbyqwe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsTV_BGKaligFNEXG0Yw7LVysAFhACT00"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:151164167013:android:d9dac979821b909c5bf78c",
+        "android_client_info": {
+          "package_name": "com.surendra.foodshareai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsTV_BGKaligFNEXG0Yw7LVysAFhACT00"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

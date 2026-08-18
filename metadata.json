@@ -1,0 +1,6 @@
+{
+  "name": "FoodShare AI",
+  "description": "AI-Enabled Smart Food Redistribution System",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

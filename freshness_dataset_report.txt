@@ -1,0 +1,17 @@
+FOODSHAREAI 2-CLASS PREPARED-FOOD FRESHNESS DATASET REPORT
+==========================================================
+TOTAL_IMAGES = 944
+FRESH = 399
+SPOILED = 545
+DUPLICATES_REMOVED = 97
+NON_FOOD_REMOVED = 1651
+INVALID_IMAGES_REMOVED = 25
+
+DETERMINISTIC TRAIN/VAL SPLIT (80/20):
+TRAIN_SPLIT_IMAGES = 755
+VAL_SPLIT_IMAGES = 189
+
+SOURCE_DATASETS = Kaggle Fresh and Spoiled Food Image Dataset, Meat Quality Assessment Dataset, Good And Bad Classification Of Boiled Rice, Parotta Quality Dataset
+SOURCE_URLS = https://www.kaggle.com/datasets/maheen00shahid/fresh-and-spoiled-food-image-dataset, https://www.kaggle.com/datasets/utaytug/meat-quality-assessment-dataset, https://data.mendeley.com/datasets/k8n89j4d5z/1, https://data.mendeley.com/datasets/k3b89j4d5z/1
+
+DATASET READY FOR 2-CLASS TRAINING = YES

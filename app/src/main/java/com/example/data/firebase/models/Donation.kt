@@ -1,0 +1,33 @@
+package com.example.data.firebase.models
+
+data class Donation(
+    val donationId: String = "",
+    val donorId: String = "",
+    val donorName: String = "",
+    val foodName: String = "",
+    val foodType: String = "",
+    val quantity: Int = 0,
+    val expiryTime: String = "",
+    val pickupAddress: String = "",
+    val foodImage: String = "",
+    val status: String = "Created",
+    val description: String = "",
+    val ngoId: String = "",
+    val ngoName: String = "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val timestamp: Long = System.currentTimeMillis(),
+    val acceptedAt: Long = 0L,
+    val assignedAt: Long = 0L,
+    val pickupStartedAt: Long = 0L,
+    val nearPickupAt: Long = 0L,
+    val collectedAt: Long = 0L,
+    val deliveryStartedAt: Long = 0L,
+    val deliveredAt: Long = 0L,
+    val completedAt: Long = 0L,
+    val volunteerName: String = "",
+    val volunteerPhone: String = "",
+    val volunteerVehicle: String = "",
+    val currentLatitude: Double = 0.0,
+    val currentLongitude: Double = 0.0
+)

@@ -1,0 +1,38 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea
+.idea/
+.vscode/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.env
+debug.keystore
+
+# Virtual Environments & Build Outputs
+freshness_env/
+venv/
+.venv/
+
+# Datasets & Temporary Test Data
+FoodTypeOnly/
+freshness_dataset/
+freshness_dataset_v*/
+freshness_downloads_temp/
+real_food_test*/
+real_food_failure_cases/
+test_freshness/
+
+# Root Large Binary Files & Reports
+/*.keras
+/*.tflite
+/*.apk
+/*.csv
+window_dump.xml
+
+
