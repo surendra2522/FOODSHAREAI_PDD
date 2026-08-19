@@ -1,0 +1,216 @@
+name: Scale E2E suites to 1800 test cases with unified e2e-tests folder
+
+on:
+  push:
+    branches: [ main, master, "feature/*" ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  selenium-website-tests:
+    name: "Selenium – Website Tests (300)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl pytest selenium
+
+      - name: Run Selenium Website Test Suite (300 TCs)
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite selenium
+
+      - name: Upload Selenium Test Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Selenium-Website-Test-Report
+          path: e2e-tests/excel/Selenium_Website_Test_Report.xlsx
+
+  appium-android-tests:
+    name: "Appium – Android Tests (300)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl
+
+      - name: Compile Appium Java Framework & Run Suite (300 TCs)
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite appium
+
+      - name: Upload Appium Test Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Appium-Android-Test-Report
+          path: e2e-tests/excel/Appium_Android_Test_Report.xlsx
+
+  unit-tests-api:
+    name: "Unit Tests – API (300)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl requests
+
+      - name: Run API Unit Test Suite (300 TCs)
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite api
+
+      - name: Upload API Unit Test Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: API-Unit-Test-Report
+          path: e2e-tests/excel/API_Unit_Test_Report.xlsx
+
+  validation-tests:
+    name: "Validation Tests (300)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl
+
+      - name: Run Validation Test Suite (300 TCs)
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite validation
+
+      - name: Upload Validation Test Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Validation-Test-Report
+          path: e2e-tests/excel/Validation_Test_Report.xlsx
+
+  deployment-status:
+    name: "Deployment Status (300)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl
+
+      - name: Run Deployment Status Test Suite (300 TCs)
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite deployment
+
+      - name: Upload Deployment Status Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deployment-Status-Report
+          path: e2e-tests/excel/Deployment_Status_Report.xlsx
+
+  load-testing-performance:
+    name: "Load Testing – Performance (300)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl
+
+      - name: Run Load Testing Performance Suite (300 TCs)
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite performance
+
+      - name: Upload Load Testing Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Load-Testing-Report
+          path: e2e-tests/excel/Load_Testing_Report.xlsx
+
+  compile-master-report:
+    name: "Compile Master Report & Deploy"
+    needs:
+      - selenium-website-tests
+      - appium-android-tests
+      - unit-tests-api
+      - validation-tests
+      - deployment-status
+      - load-testing-performance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl
+
+      - name: Download All Individual Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: e2e-tests/excel/artifacts/
+
+      - name: Compile Master 1800 Test Case Report
+        run: |
+          python e2e-tests/scripts/build_master_1800_report.py --suite master
+
+      - name: Upload Master 1800 Test Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Master-E2E-1800-Test-Report
+          path: e2e-tests/excel/FoodShareAI_Master_1800_Test_Report.xlsx

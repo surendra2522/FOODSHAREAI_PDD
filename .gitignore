@@ -7,6 +7,8 @@
 .vscode/
 .DS_Store
 /build
+target/
+appium-tests/
 /captures
 .externalNativeBuild
 .cxx
