@@ -1,8 +1,13 @@
 package com.example.data.firebase.models
 
+import com.google.firebase.firestore.IgnoreExtraProperties
+
+@IgnoreExtraProperties
 data class User(
     val uid: String = "",
     val name: String = "",
+    val displayName: String = "",
+    val fullName: String = "",
     val email: String = "",
     val phone: String = "",
     val role: String = "",

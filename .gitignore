@@ -20,6 +20,7 @@ venv/
 .venv/
 
 # Datasets & Temporary Test Data
+FoodShareAI_Dataset/
 FoodTypeOnly/
 freshness_dataset/
 freshness_dataset_v*/

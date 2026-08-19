@@ -4,8 +4,10 @@ import android.net.Uri
 import android.util.Log
 import com.example.data.firebase.models.*
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
@@ -13,6 +15,79 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.*
+
+fun DocumentSnapshot.toSafeUser(defaultUid: String = ""): User {
+    val rawUser = try {
+        this.toObject(User::class.java)
+    } catch (e: Exception) {
+        Log.w("FirebaseService", "toObject(User::class.java) failed for doc ${this.id}, using safe manual extraction: ${e.localizedMessage}")
+        null
+    }
+
+    val docId = if (defaultUid.isNotBlank()) defaultUid else this.id
+    val uid = rawUser?.uid?.ifBlank { docId } ?: docId
+    val rawName = getString("name") ?: getString("fullName") ?: getString("displayName") ?: ""
+    val resolvedName = rawUser?.name?.ifBlank { rawUser.fullName.ifBlank { rawUser.displayName.ifBlank { rawName } } } ?: rawName
+    val email = rawUser?.email?.ifBlank { getString("email") ?: "" } ?: (getString("email") ?: "")
+    val rawRole = (rawUser?.role?.ifBlank { getString("role") ?: "" } ?: (getString("role") ?: "")).trim().lowercase()
+    val normalizedRole = if (rawRole == "charity") "ngo" else rawRole
+    val phone = rawUser?.phone?.ifBlank { getString("phone") ?: "" } ?: (getString("phone") ?: "")
+    val profileImage = rawUser?.profileImage?.ifBlank { getString("profileImage") ?: "" } ?: (getString("profileImage") ?: "")
+
+    val createdAtLong = try {
+        get("createdAt")?.let { raw ->
+            when (raw) {
+                is Long -> raw
+                is Number -> raw.toLong()
+                is String -> {
+                    try { raw.toLong() }
+                    catch (e: Exception) {
+                        try {
+                            java.time.Instant.parse(raw).toEpochMilli()
+                        } catch (e2: Exception) { System.currentTimeMillis() }
+                    }
+                }
+                is com.google.firebase.Timestamp -> raw.toDate().time
+                else -> System.currentTimeMillis()
+            }
+        } ?: System.currentTimeMillis()
+    } catch (e: Exception) {
+        System.currentTimeMillis()
+    }
+
+    return User(
+        uid = uid,
+        name = resolvedName.ifBlank { "User" },
+        displayName = getString("displayName") ?: resolvedName.ifBlank { "User" },
+        fullName = getString("fullName") ?: resolvedName.ifBlank { "User" },
+        email = email,
+        phone = phone,
+        role = normalizedRole.ifBlank { "donor" },
+        profileImage = profileImage,
+        impactScore = getLong("impactScore")?.toInt() ?: rawUser?.impactScore ?: 10,
+        mealsSaved = getLong("mealsSaved")?.toInt() ?: rawUser?.mealsSaved ?: 0,
+        co2OffsetKg = getDouble("co2OffsetKg") ?: rawUser?.co2OffsetKg ?: 0.0,
+        totalDonations = getLong("totalDonations")?.toInt() ?: rawUser?.totalDonations ?: 0,
+        createdAt = createdAtLong,
+        fcmToken = getString("fcmToken") ?: rawUser?.fcmToken ?: "",
+        missionStatement = getString("missionStatement") ?: rawUser?.missionStatement ?: "Helping redistribute surplus food efficiently across the city.",
+        licenseNumber = getString("licenseNumber") ?: rawUser?.licenseNumber ?: "",
+        registrationId = getString("registrationId") ?: rawUser?.registrationId ?: "",
+        address = getString("address") ?: rawUser?.address ?: "",
+        operatingCities = getString("operatingCities") ?: rawUser?.operatingCities ?: "",
+        vehicleFleetCount = getLong("vehicleFleetCount")?.toInt() ?: rawUser?.vehicleFleetCount ?: 0,
+        volunteerCount = getLong("volunteerCount")?.toInt() ?: rawUser?.volunteerCount ?: 0,
+        foodCategories = getString("foodCategories") ?: rawUser?.foodCategories ?: "",
+        operatingHours = getString("operatingHours") ?: rawUser?.operatingHours ?: "",
+        emergencyContact = getString("emergencyContact") ?: rawUser?.emergencyContact ?: "",
+        serviceArea = getString("serviceArea") ?: rawUser?.serviceArea ?: "",
+        contactPerson = getString("contactPerson") ?: rawUser?.contactPerson ?: "",
+        city = getString("city") ?: rawUser?.city ?: "",
+        state = getString("state") ?: rawUser?.state ?: "",
+        pincode = getString("pincode") ?: rawUser?.pincode ?: "",
+        description = getString("description") ?: rawUser?.description ?: ""
+    )
+}
 
 class FirebaseService {
     private val auth = FirebaseAuth.getInstance()
@@ -22,36 +97,47 @@ class FirebaseService {
     // --- Authentication ---
     fun getCurrentUserUid(): String? = auth.currentUser?.uid
 
-    suspend fun login(email: String, password: String): String? {
+    suspend fun loginWithDetails(email: String, password: String): Result<String> {
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
-            val uid = result.user?.uid
-            if (uid != null) saveFcmToken(uid)
-            uid
+            val uid = result.user?.uid ?: return Result.failure(Exception("User ID is missing from Auth result."))
+            if (uid.isNotBlank()) saveFcmToken(uid)
+            Result.success(uid)
         } catch (e: Exception) {
             Log.e("FirebaseService", "login exception: ${e.localizedMessage}", e)
-            null
+            Result.failure(e)
+        }
+    }
+
+    suspend fun login(email: String, password: String): String? {
+        return loginWithDetails(email, password).getOrNull()
+    }
+
+    suspend fun registerWithDetails(email: String, password: String, name: String, role: String): Result<String> {
+        return try {
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            val uid = result.user?.uid ?: return Result.failure(Exception("User ID is missing from Auth result."))
+            
+            val normalizedRole = if (role.trim().lowercase() == "charity") "ngo" else role.trim().lowercase()
+            val user = User(
+                uid = uid,
+                name = name,
+                displayName = name,
+                fullName = name,
+                email = email,
+                role = normalizedRole
+            )
+            firestore.collection("users").document(uid).set(user, SetOptions.merge()).await()
+            saveFcmToken(uid)
+            Result.success(uid)
+        } catch (e: Exception) {
+            Log.e("FirebaseService", "register exception: ${e.localizedMessage}", e)
+            Result.failure(e)
         }
     }
 
     suspend fun register(email: String, password: String, name: String, role: String): String? {
-        return try {
-            val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val uid = result.user?.uid ?: return null
-            
-            val user = User(
-                uid = uid,
-                name = name,
-                email = email,
-                role = role
-            )
-            firestore.collection("users").document(uid).set(user).await()
-            saveFcmToken(uid)
-            uid
-        } catch (e: Exception) {
-            Log.e("FirebaseService", "register exception: ${e.localizedMessage}", e)
-            null
-        }
+        return registerWithDetails(email, password, name, role).getOrNull()
     }
 
     private suspend fun saveFcmToken(uid: String) {
@@ -80,11 +166,59 @@ class FirebaseService {
     }
 
     // --- User Profile ---
-    suspend fun getUserProfile(uid: String): User? {
+    suspend fun getUserProfile(uid: String, fallbackEmail: String? = null): User? {
         return try {
-            firestore.collection("users").document(uid).get().await().toObject(User::class.java)
+            // 1. Try canonical location users/{uid}
+            val doc = firestore.collection("users").document(uid).get().await()
+            if (doc.exists()) {
+                val user = doc.toSafeUser(uid)
+                return user
+            }
+
+            // 2. If doc not found at users/{uid} and fallbackEmail is provided, query by email
+            val searchEmail = fallbackEmail?.ifBlank { auth.currentUser?.email } ?: auth.currentUser?.email
+            if (!searchEmail.isNullOrBlank()) {
+                Log.d("FirebaseService", "users/$uid not found. Querying users by email: $searchEmail")
+                val querySnap = firestore.collection("users")
+                    .whereEqualTo("email", searchEmail.trim())
+                    .limit(1)
+                    .get()
+                    .await()
+
+                if (!querySnap.isEmpty) {
+                    val foundDoc = querySnap.documents[0]
+                    val user = foundDoc.toSafeUser(uid).copy(uid = uid)
+                    Log.d("FirebaseService", "Found user by email in doc ${foundDoc.id}. Migrating profile to users/$uid")
+                    try {
+                        firestore.collection("users").document(uid).set(user, SetOptions.merge()).await()
+                    } catch (e: Exception) {
+                        Log.w("FirebaseService", "Failed to migrate user doc to users/$uid: ${e.localizedMessage}")
+                    }
+                    return user
+                }
+
+                // 3. Profile still missing: Auto-create minimal profile at users/{uid}
+                Log.w("FirebaseService", "No profile found for email $searchEmail. Auto-creating profile at users/$uid")
+                val newName = searchEmail.substringBefore("@").ifBlank { "User" }
+                val newUser = User(
+                    uid = uid,
+                    email = searchEmail,
+                    name = newName,
+                    displayName = newName,
+                    fullName = newName,
+                    role = "donor"
+                )
+                try {
+                    firestore.collection("users").document(uid).set(newUser, SetOptions.merge()).await()
+                } catch (e: Exception) {
+                    Log.e("FirebaseService", "Auto-create profile failed: ${e.localizedMessage}")
+                }
+                return newUser
+            }
+
+            null
         } catch (e: Exception) {
-            Log.e("FirebaseService", "getUserProfile exception: ${e.localizedMessage}")
+            Log.e("FirebaseService", "getUserProfile exception: ${e.localizedMessage}", e)
             null
         }
     }
@@ -94,7 +228,7 @@ class FirebaseService {
             if (!newPassword.isNullOrEmpty()) {
                 auth.currentUser?.updatePassword(newPassword)?.await()
             }
-            firestore.collection("users").document(user.uid).set(user).await()
+            firestore.collection("users").document(user.uid).set(user, SetOptions.merge()).await()
         } catch (e: Exception) {
             Log.e("FirebaseService", "updateUserProfile exception: ${e.localizedMessage}", e)
         }

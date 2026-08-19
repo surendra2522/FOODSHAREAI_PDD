@@ -249,12 +249,12 @@ class FoodShareViewModel(application: Application) : AndroidViewModel(applicatio
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                val success = repository.login(email, passwordHash, role)
-                if (success) {
+                val result = repository.loginWithResult(email, passwordHash, role)
+                result.onSuccess {
                     _successMessage.value = "Welcome back!"
                     onSuccess()
-                } else {
-                    _errorMessage.value = "Invalid login credentials for role ${role.uppercase()}."
+                }.onFailure { ex ->
+                    _errorMessage.value = ex.localizedMessage ?: "Authentication failed."
                 }
             } catch (e: Exception) {
                 _errorMessage.value = e.localizedMessage ?: "Authentication failed."
@@ -269,12 +269,12 @@ class FoodShareViewModel(application: Application) : AndroidViewModel(applicatio
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                val success = repository.register(email, name, passwordHash, role)
-                if (success) {
+                val result = repository.registerWithResult(email, name, passwordHash, role)
+                result.onSuccess {
                     _successMessage.value = "Account created successfully!"
                     onSuccess()
-                } else {
-                    _errorMessage.value = "Registration failed."
+                }.onFailure { ex ->
+                    _errorMessage.value = ex.localizedMessage ?: "Registration failed."
                 }
             } catch (e: Exception) {
                 _errorMessage.value = e.localizedMessage ?: "Registration failed."

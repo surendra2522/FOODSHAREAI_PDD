@@ -12,6 +12,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import java.util.Locale
 
 class OnDeviceFoodClassifier(private val context: Context? = null) {
 
@@ -215,6 +216,72 @@ class OnDeviceFoodClassifier(private val context: Context? = null) {
         return byteBuffer
     }
 
+    fun cleanFoodLabel(rawLabel: String): String {
+        if (rawLabel.isBlank() || rawLabel.startsWith("Unknown", ignoreCase = true)) {
+            return "Prepared Meal"
+        }
+
+        val firstPart = rawLabel.split(",")[0].split(";")[0].trim().lowercase()
+
+        val cleanMap = mapOf(
+            "pizza pizza pie" to "Pizza",
+            "hotdog hot dog red hot" to "Hot Dog",
+            "bagel beigel" to "Bagel",
+            "head cabbage" to "Cabbage",
+            "french loaf" to "French Bread",
+            "spaghetti squash" to "Spaghetti Squash",
+            "acorn squash" to "Acorn Squash",
+            "butternut squash" to "Butternut Squash",
+            "cucumber cuke" to "Cucumber",
+            "artichoke globe artichoke" to "Artichoke",
+            "pineapple ananas" to "Pineapple",
+            "jackfruit jak jack" to "Jackfruit",
+            "chocolate sauce chocolate syrup" to "Chocolate Syrup",
+            "meat loaf meatloaf" to "Meatloaf",
+            "potpie" to "Pot Pie",
+            "ice cream icecream" to "Ice Cream",
+            "ice lolly lolly lollipop popsicle" to "Popsicle",
+            "cheeseburger" to "Cheeseburger",
+            "burrito" to "Burrito",
+            "guacamole" to "Guacamole",
+            "consomme" to "Consomme",
+            "hot pot hotpot" to "Hot Pot",
+            "trifle" to "Trifle",
+            "mashed potato" to "Mashed Potatoes",
+            "broccoli" to "Broccoli",
+            "cauliflower" to "Cauliflower",
+            "strawberry" to "Strawberry",
+            "orange" to "Orange",
+            "lemon" to "Lemon",
+            "fig" to "Fig",
+            "banana" to "Banana",
+            "pomegranate" to "Pomegranate",
+            "carbonara" to "Carbonara",
+            "dough" to "Dough",
+            "red wine" to "Red Wine",
+            "espresso" to "Espresso",
+            "eggnog" to "Eggnog",
+            "corn" to "Corn",
+            "pretzel" to "Pretzel",
+            "french fries chips" to "French Fries"
+        )
+
+        cleanMap[firstPart]?.let { return it }
+
+        val words = firstPart.replace("_", " ").split("\\s+".toRegex()).filter { it.isNotBlank() }
+        if (words.isEmpty()) return "Prepared Meal"
+
+        val selectedWords = if (words.size > 2 && !firstPart.contains("sauce") && !firstPart.contains("soup") && !firstPart.contains("salad") && !firstPart.contains("bread") && !firstPart.contains("cake") && !firstPart.contains("pie")) {
+            words.take(2)
+        } else {
+            words
+        }
+
+        return selectedWords.joinToString(" ") { word ->
+            word.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+        }
+    }
+
     /**
      * Executes Stage 1 (Food Detection) and Stage 2 (Freshness Analysis) using on-device TFLite models.
      */
@@ -264,8 +331,15 @@ class OnDeviceFoodClassifier(private val context: Context? = null) {
             }
         }
 
-        val label = if (maxClassIdx in foodLabels.indices) foodLabels[maxClassIdx] else "Unknown Object"
-        val lowerLabel = label.lowercase()
+        // Compute Softmax probability for top class logit
+        var sumExp = 0.0
+        for (i in scores.indices) {
+            sumExp += Math.exp((scores[i] - maxScore).toDouble())
+        }
+        val softmaxProb = if (sumExp > 0.0) (1.0 / sumExp).toFloat() else 0f
+
+        val rawLabel = if (maxClassIdx in foodLabels.indices) foodLabels[maxClassIdx] else "Unknown Object"
+        val lowerLabel = rawLabel.lowercase()
 
         // Comprehensive Non-Food keywords list (documents, paper, electronics, footwear, clothing, vehicles, animals, furniture, wall, etc.)
         val nonFoodKeywords = setOf(
@@ -326,11 +400,18 @@ class OnDeviceFoodClassifier(private val context: Context? = null) {
         Log.i(TAG, "FOOD_GATE_RESULT:\nisFood=true\nverificationStatus=FOOD\ncanPublish=pending\nreason=\"Food detected or food-like candidate\"\nfreshnessModelExecuted=true")
         Log.i(TAG, "FRESHNESS_MODEL_STARTED=true")
 
-        val foodName = if (label.isNotBlank() && !label.equals("Unknown Item", ignoreCase = true) && !label.equals("Unknown Object", ignoreCase = true)) {
-            label.replace("_", " ").split(" ").joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
-        } else "Prepared Meal"
+        val cleanedName = cleanFoodLabel(rawLabel)
+        val foodName = if (softmaxProb >= 0.25f && cleanedName.isNotBlank() && !cleanedName.equals("Unknown Object", ignoreCase = true)) {
+            cleanedName
+        } else {
+            "Prepared Meal"
+        }
 
-        val foodConfidence = if (maxScore > 0.50f) ConfidenceLevel.HIGH else ConfidenceLevel.MEDIUM
+        val foodConfidence = when {
+            softmaxProb >= 0.50f -> ConfidenceLevel.HIGH
+            softmaxProb >= 0.25f -> ConfidenceLevel.MEDIUM
+            else -> ConfidenceLevel.LOW
+        }
 
         if (!isFreshnessModelAvailable || freshnessInterpreter == null) {
             Log.w(TAG, "AI_FRESHNESS_MODEL: modelLoadSuccessful=false")

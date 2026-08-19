@@ -14,7 +14,7 @@ android {
   compileSdk = 35
 
   defaultConfig {
-    applicationId = "com.aistudio.foodshare.kbyqwe"
+    applicationId = "com.surendra.foodshareai"
     minSdk = 24
     targetSdk = 35
     versionCode = 1

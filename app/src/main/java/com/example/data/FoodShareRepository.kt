@@ -40,41 +40,48 @@ class FoodShareRepository() {
         }
     }
 
-    suspend fun login(email: String, passwordHash: String, selectedRole: String): Boolean {
+    suspend fun loginWithResult(email: String, passwordHash: String, selectedRole: String): Result<UserEntity> {
         Log.d("AuthNavigation", "Initiating login for email: $email, selected role: $selectedRole")
-        val uid = firebaseService.login(email, passwordHash) ?: run {
-            Log.e("AuthNavigation", "Login failed: Firebase auth failed for $email")
-            return false
-        }
-        val user = firebaseService.getUserProfile(uid) ?: run {
+        val authResult = firebaseService.loginWithDetails(email, passwordHash)
+        val uid = authResult.getOrElse { return Result.failure(it) }
+
+        val user = firebaseService.getUserProfile(uid, email) ?: run {
             Log.e("AuthNavigation", "Login failed: Could not fetch user profile for UID $uid")
-            return false
+            return Result.failure(Exception("User profile not found in database for UID $uid"))
         }
         
-        val normalizedRole = user.role.lowercase().trim()
-        val normalizedSelectedRole = selectedRole.lowercase().trim()
+        val rawRole = user.role.lowercase().trim()
+        val normalizedRole = if (rawRole == "charity") "ngo" else rawRole
+        val rawSelectedRole = selectedRole.lowercase().trim()
+        val normalizedSelectedRole = if (rawSelectedRole == "charity") "ngo" else rawSelectedRole
 
         Log.d("AuthNavigation", "Login response: User UID: $uid, Firestore Raw Role: '${user.role}', Normalized Role: '$normalizedRole', Selected Role: '$normalizedSelectedRole'")
 
         val entity = user.toEntity()
         
-        if (normalizedRole == normalizedSelectedRole || normalizedRole == "admin") {
+        val isRoleMatch = normalizedRole == normalizedSelectedRole || normalizedRole == "admin"
+
+        if (isRoleMatch) {
             Log.d("AuthNavigation", "Saved role: '${entity.role}'. Login successful! Setting _currentUser.")
             _currentUser.value = entity
-            return true
+            return Result.success(entity)
         } else {
             Log.w("AuthNavigation", "Role mismatch! DB Role: '$normalizedRole' vs Selected Role: '$normalizedSelectedRole'")
-            return false
+            return Result.failure(Exception("Role mismatch: Account is registered as ${normalizedRole.uppercase()}, but selected ${normalizedSelectedRole.uppercase()}."))
         }
     }
 
-    suspend fun register(email: String, name: String, passwordHash: String, role: String): Boolean {
-        val normalizedRole = role.lowercase().trim()
+    suspend fun login(email: String, passwordHash: String, selectedRole: String): Boolean {
+        return loginWithResult(email, passwordHash, selectedRole).isSuccess
+    }
+
+    suspend fun registerWithResult(email: String, name: String, passwordHash: String, role: String): Result<UserEntity> {
+        val rawRole = role.lowercase().trim()
+        val normalizedRole = if (rawRole == "charity") "ngo" else rawRole
         Log.d("AuthNavigation", "Registering new user with email: $email, role: $normalizedRole")
-        val uid = firebaseService.register(email, passwordHash, name, normalizedRole) ?: run {
-            Log.e("AuthNavigation", "Registration failed in FirebaseService")
-            return false
-        }
+        val authResult = firebaseService.registerWithDetails(email, passwordHash, name, normalizedRole)
+        val uid = authResult.getOrElse { return Result.failure(it) }
+
         val entity = UserEntity(
             id = uid,
             email = email,
@@ -98,7 +105,11 @@ class FoodShareRepository() {
             Log.e("FoodShareRepository", "Error sending register admin notification: ${e.localizedMessage}")
         }
 
-        return true
+        return Result.success(entity)
+    }
+
+    suspend fun register(email: String, name: String, passwordHash: String, role: String): Boolean {
+        return registerWithResult(email, name, passwordHash, role).isSuccess
     }
 
     suspend fun resetPassword(email: String, newPasswordHash: String): Boolean {
